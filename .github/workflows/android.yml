@@ -31,5 +31,5 @@ jobs:
     - name: Upload APK
       uses: actions/upload-artifact@v2
       with:
-        name: notification_tracker
-        path: app/build/outputs/apk/release/notification_tracker.release.apk
+        name: SSLDroid
+        path: app/build/outputs/apk/release/SSLDroid.apk
