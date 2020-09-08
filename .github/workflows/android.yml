@@ -32,4 +32,4 @@ jobs:
       uses: actions/upload-artifact@v2
       with:
         name: SSLDroid
-        path: app/build/outputs/apk/release/*.apk
+        path: app/build/outputs/apk/release/SSLDroid.apk
