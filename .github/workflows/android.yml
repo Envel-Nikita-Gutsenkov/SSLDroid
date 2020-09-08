@@ -32,4 +32,5 @@ jobs:
       uses: actions/upload-artifact@v2
       with:
         name: SSLDroid
-        path: app/build/outputs/apk/release/SSLDroid.apk
+        #path: app/build/outputs/apk/release/SSLDroid.apk
+        path: ${{ github.workspace }}/app/build/outputs/apk/debug/*.apk
