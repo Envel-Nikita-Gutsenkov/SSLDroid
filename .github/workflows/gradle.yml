@@ -1,86 +1,44 @@
-name: Android CI
+# This is a basic workflow to help you get started with Actions
+name: CD
 
+# Controls when the action will run. Triggers the workflow on push or pull request
+# events but only for the master branch
 on:
-  pull_request:
-    branches:
-      - 'master'
-
+  push:
+    tags:
+      - "v*.*.*" # on every version tag will build a new android artifact.
 jobs:
   build:
-
+    name: Build APK
     runs-on: ubuntu-latest
-
     steps:
       - uses: actions/checkout@v1
-      - name: set up JDK 1.8
+      - name: Setup Java
         uses: actions/setup-java@v1
         with:
-          java-version: 1.8
-      - name: Run static checks
-        run: ./gradlew checkAll
-      - name: Run some unit tests
-        run: ./gradlew testStageDebugUnitTest
-
-      - name: prepare gcloud
-        uses: GoogleCloudPlatform/github-actions/setup-gcloud@master
+          java-version: "12.x"
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v1
         with:
-          version: latest
-          service_account_email:  ${{ secrets.SA_EMAIL }}
-          service_account_key: ${{ secrets.GOOGLE_APPLICATION_CREDENTIALS }}
-      - name: gcloud Set up project
-        run: |
-          gcloud config set project ${{ secrets.PROJECT_ID }}
-      - name: Assemble apks for smoke test
-        run: ./gradlew Smoke
-      - name: Run tests in test lab
-        run: |
-          gcloud firebase test android run \
-            --app app/build/outputs/apk/production/debug/app.apk \
-            --test app/build/outputs/apk/androidTest/production/debug/appTest.apk \
-            --device model=Nexus6P,version=25,orientation=portrait,locale=en_US \
-            --device model=athene,version=23,orientation=portrait,locale=en_US \
-            --device model=sailfish,version=26,orientation=portrait,locale=en_US
+          flutter-version: "1.17.5"
 
+      - name: Decoding android/key.properties
+        run: echo "${{ secrets.KEYPROP_PROD }}" | base64 --decode > android/key.properties
 
-buildscript {
-    repositories {
-        mavenCentral()
-    }
-    dependencies {
-        classpath 'com.android.tools.build:gradle:1.1.0'
-    }
-}
+      - name: Decoding android/neumodore_key.jks
+        run: echo "${{ secrets.KEYJKS_PROD }}" | base64 --decode > android/key.jks
 
-apply plugin: 'com.android.application'
+      - name: Pub Get Packages
+        run: flutter pub get
 
-android {
-    compileSdkVersion 17
-    buildToolsVersion '22.0.1'
-       lintOptions {
+      - name: Build APK
+        run: flutter build apk --split-per-abi --release
 
-          abortOnError false
-      }
-    sourceSets {
-        main {
-            manifest.srcFile 'AndroidManifest.xml'
-            java.srcDirs = ['src']
-            resources.srcDirs = ['src']
-            aidl.srcDirs = ['src']
-            renderscript.srcDirs = ['src']
-            res.srcDirs = ['res']
-            assets.srcDirs = ['assets']
-        }
+      - name: Build APPBUNDLE
+        run: flutter build appbundle --release
 
-        // Move the tests to tests/java, tests/res, etc...
-        instrumentTest.setRoot('tests')
-
-        // Move the build types to build-types/<type>
-        // For instance, build-types/debug/java, build-types/debug/AndroidManifest.xml, ...
-        // This moves them out of them default location under src/<type>/... which would
-        // conflict with src/ being used by the main source set.
-        // Adding new build types or product flavors should be accompanied
-        // by a similar customization.
-        debug.setRoot('build-types/debug')
-        release.setRoot('build-types/release')
-    }
-}
+      - name: Create Github Release
+        uses: ncipollo/release-action@v1
+        with:
+          artifacts: "build/app/outputs/apk/release/*.apk,build/app/outputs/bundle/release/*.aab"
+          token: ${{ secrets.RELEASES_TOKEN }}
